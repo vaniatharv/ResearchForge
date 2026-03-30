@@ -1,4 +1,5 @@
-**ResearchForge** is a multi-agent AI research assistant powered by LangChain and Meta Llama 3.1. It breaks down a research query into structured tasks, searches the web for real-time information, summarizes findings, critiques them, and synthesizes a final report — all while persisting knowledge in a vector database for semantic retrieval.
+**ResearchForge** is a multi-agent AI research assistant powered by LangChain and Meta Llama 3.1. 
+It breaks down a research query into structured tasks, searches the web for real-time information, summarizes findings, critiques them, and synthesizes a final report — all while persisting knowledge in a vector database for semantic retrieval.
 ---
 ## Features
 - **Query Planning** — Decomposes a research topic into ordered, atomic tasks
