@@ -10,6 +10,12 @@ from langchain_community.tools import DuckDuckGoSearchResults
 from langchain_community.utilities import DuckDuckGoSearchAPIWrapper
 import json
 
+# Tavily import (optional — activated when TAVILY_API_KEY is set)
+try:
+    from tavily import TavilyClient
+except ImportError:
+    TavilyClient = None
+
 # Add parent directory to path to import memory module
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from memory import store_in_vectordb, retrieve_from_vectordb
@@ -29,22 +35,61 @@ parser = StrOutputParser()
 
 
 ########################################################################################################3
+def _get_search_provider() -> str:
+    """Return the active search provider name based on env vars."""
+    explicit = os.getenv("SEARCH_PROVIDER", "").lower()
+    if explicit in ("tavily", "duckduckgo"):
+        return explicit
+    # Auto-select: use Tavily when its API key is available, else DuckDuckGo
+    if os.getenv("TAVILY_API_KEY"):
+        return "tavily"
+    return "duckduckgo"
+
+
+def _search_tavily(query: str, max_results: int = 5) -> str:
+    """Search the internet using Tavily."""
+    if TavilyClient is None:
+        raise ImportError("tavily-python is not installed. Install it with: pip install tavily-python")
+    client = TavilyClient()  # uses TAVILY_API_KEY env var
+    response = client.search(query=query, max_results=max_results, search_depth="basic")
+    # Format results to a readable string consistent with DuckDuckGo output
+    formatted = []
+    for r in response.get("results", []):
+        formatted.append(
+            f"[{r.get('title', '')}]({r.get('url', '')}) - {r.get('content', '')}"
+        )
+    return "\n".join(formatted) if formatted else "No results found."
+
+
+def _search_duckduckgo(query: str, max_results: int = 5) -> str:
+    """Search the internet using DuckDuckGo."""
+    search_wrapper = DuckDuckGoSearchAPIWrapper(max_results=max_results)
+    search_tool = DuckDuckGoSearchResults(api_wrapper=search_wrapper)
+    return search_tool.invoke(query)
+
+
 def search_internet(query: str, max_results: int = 5) -> str:
     """
-    Search the internet using DuckDuckGo.
-    
+    Search the internet using the configured search provider.
+
+    Provider selection (in priority order):
+      1. SEARCH_PROVIDER env var ('tavily' | 'duckduckgo')
+      2. Auto-detect: Tavily when TAVILY_API_KEY is set, else DuckDuckGo
+
     Args:
         query: Search query
         max_results: Maximum number of results to return
-    
+
     Returns:
         Search results as formatted string
     """
+    provider = _get_search_provider()
     try:
-        print(f"\n🔍 Searching internet for: {query}")
-        search_wrapper = DuckDuckGoSearchAPIWrapper(max_results=max_results)
-        search_tool = DuckDuckGoSearchResults(api_wrapper=search_wrapper)
-        results = search_tool.invoke(query)
+        print(f"\n🔍 Searching internet for: {query} (provider: {provider})")
+        if provider == "tavily":
+            results = _search_tavily(query, max_results)
+        else:
+            results = _search_duckduckgo(query, max_results)
         print(f"✓ Found search results")
         return results
     except Exception as e:

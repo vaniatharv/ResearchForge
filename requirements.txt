@@ -29,6 +29,7 @@ sentence-transformers
 
 # Search Tools
 duckduckgo-search
+tavily-python
 
 # Environment Variable Management
 python-dotenv
